@@ -1,0 +1,60 @@
+networks:
+  todo-db:
+  todo-lb:
+
+volumes:
+  db_data:
+
+services:
+  db:
+    image: mysql:9
+    environment:
+      MYSQL_ROOT_PASSWORD: "xxxx"
+      MYSQL_DATABASE: "todo"
+    networks:
+      - todo-db
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: "mysqladmin ping -h localhost -u root -pxxxx || exit 1"
+      interval: 5s
+      timeout: 2s
+      retries: 3
+
+  traefik:
+    image: traefik:v3
+    ports:
+      - 80:80
+      - 8080:8080
+    networks:
+      - todo-lb
+    volumes:
+      - ./traefik.yml:/etc/traefik/traefik.yml
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: "wget -qO- http://localhost:8080/api/rawdata || exit 1"
+      interval: 5s
+      timeout: 2s
+      retries: 3
+
+  todo:
+    image: lethiec/todo
+    build: .
+    deploy:
+      mode: replicated
+      replicas: 3
+    environment:
+      DATABASE_URL: "mysql://root:xxxx@db:3306/todo?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=GMT"
+      AUTH: 0
+    networks:
+      - todo-db
+      - todo-lb
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.todo.service=todo
+      - traefik.http.services.todo.loadbalancer.server.port=8080
+    depends_on:
+      traefik:
+        condition: service_healthy
+      db:
+        condition: service_healthy

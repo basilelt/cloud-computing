@@ -1,0 +1,9 @@
+# traefik.yml
+providers:
+  docker:
+    defaultRule: "PathPrefix(`/`)"
+    exposedbydefault: false
+
+# API and dashboard configuration
+api:
+  insecure: true

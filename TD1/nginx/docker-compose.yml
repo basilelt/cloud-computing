@@ -1,0 +1,37 @@
+networks:
+  dbnw: # définition d'un réseau virtuel
+services:
+  srv: # premier service : l'application hello-world
+    image: lethiec/hello # son image
+    build: .
+    deploy:
+      mode: replicated
+      replicas: 3
+    # ports:
+    #   - 80 # inutile, car exposé par le répartiteur de charge
+    networks:
+      - dbnw # docker virtual network
+    labels:
+      - traefik.enable=true
+      # - traefik.http.services.srv.loadbalancer.server.port=80 # Inutile, 80 est indiqué par EXPOSE du Dockerfile de nginx:mainline-alpine-slim (ancêtre de nginxdemos/hello), et les conteneurs d'un même service sont vu comme un seul service
+      - traefik.http.services.srv.loadbalancer.healthcheck.path=/
+      - traefik.http.services.srv.loadbalancer.healthcheck.interval=10s
+      - traefik.http.services.srv.loadbalancer.healthcheck.timeout=5s
+    depends_on:
+      - lb # implique le démarrage de lb avant (ici pour l'exemple)
+    healthcheck:
+      test: "wget -O - http://localhost 2>/dev/null | grep -q html || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  lb: # second service : le répartiteur de charge
+    image: traefik:v3
+    ports: # exposition de ports à l'extérieur
+      - 80:80
+      - 8080:8080
+    networks:
+      - dbnw # comme pour srv
+    volumes:
+      - $PWD/traefik.yml:/etc/traefik/traefik.yml
+      - /var/run/docker.sock:/var/run/docker.sock
