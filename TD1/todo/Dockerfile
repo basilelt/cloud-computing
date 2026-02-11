@@ -1,4 +1,4 @@
-FROM tomcat:9-jdk17-temurin
+FROM tomcat:9-jre17-temurin
 
 LABEL maintainer=basile.le-thiec@uha.fr
 
