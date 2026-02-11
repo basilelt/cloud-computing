@@ -53,6 +53,7 @@ services:
       - traefik.enable=true
       - traefik.http.routers.todo.service=todo
       - traefik.http.services.todo.loadbalancer.server.port=8080
+      - traefik.docker.network=todo_todo-lb
     depends_on:
       traefik:
         condition: service_healthy
