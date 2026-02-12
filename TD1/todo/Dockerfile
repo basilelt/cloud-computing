@@ -19,28 +19,25 @@ RUN $JAVA_HOME/bin/jlink \
 # Second stage, Use the custom JRE and build the app image with Tomcat
 FROM alpine:3
 
-RUN apk update && \
-    apk upgrade && \
-    apk add --no-cache curl && \
-    rm -rf /var/cache/apk/*
-
-# Set Java home and path
+# Set Env
 ENV JAVA_HOME=/opt/jdk/jdk-17
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
-
-# Copy JRE from the base image
-COPY --from=jre-builder /optimized-jdk-17 $JAVA_HOME
-
-# Install Tomcat
 ENV CATALINA_HOME=/opt/tomcat
 ENV PATH="${CATALINA_HOME}/bin:${PATH}"
 ENV TOMCAT_VERSION=9.0.115
 
-# Add app user
 ARG APPLICATION_USER=tomcat
 
-# Create user, install Tomcat, set ownership — all in one layer to avoid duplication
-RUN addgroup -S $APPLICATION_USER && \
+# Copy JRE from the base image
+COPY --from=jre-builder /optimized-jdk-17 $JAVA_HOME
+
+# Install upgrade, add curl, create user, install Tomcat, set ownership — all in one layer to avoid duplication
+RUN apk update && \
+    apk upgrade && \
+    apk add --no-cache curl && \
+    rm -rf /var/cache/apk/* && \
+    apk --purge del apk-tools && \
+    addgroup -S $APPLICATION_USER && \
     adduser -S -G $APPLICATION_USER $APPLICATION_USER && \
     curl -SL https://downloads.apache.org/tomcat/tomcat-9/v$TOMCAT_VERSION/bin/apache-tomcat-$TOMCAT_VERSION.tar.gz | tar -xzC /opt && \
     mv /opt/apache-tomcat-$TOMCAT_VERSION $CATALINA_HOME && \
