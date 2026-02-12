@@ -37,19 +37,28 @@ RUN apk update && \
     apk add --no-cache curl && \
     rm -rf /var/cache/apk/* && \
     apk --purge del apk-tools && \
+    rm -rf /usr/lib/libapk.so* \
+       /sbin/apk \
+       /lib/apk \
+       /etc/apk \
+       /var/cache/apk && \
+    \
     addgroup -S $APPLICATION_USER && \
     adduser -S -G $APPLICATION_USER $APPLICATION_USER && \
+    \
     curl -SL https://downloads.apache.org/tomcat/tomcat-9/v$TOMCAT_VERSION/bin/apache-tomcat-$TOMCAT_VERSION.tar.gz | tar -xzC /opt && \
     mv /opt/apache-tomcat-$TOMCAT_VERSION $CATALINA_HOME && \
+    \
     rm -rf $CATALINA_HOME/webapps/* \
-    $CATALINA_HOME/bin/*.bat \
-    $CATALINA_HOME/bin/*.tar.gz \
-    $CATALINA_HOME/bin/catalina-tasks.xml \
-    $CATALINA_HOME/BUILDING.txt \
-    $CATALINA_HOME/CONTRIBUTING.md \
-    $CATALINA_HOME/README.md \
-    $CATALINA_HOME/RELEASE-NOTES \
-    $CATALINA_HOME/RUNNING.txt && \
+        $CATALINA_HOME/bin/*.bat \
+        $CATALINA_HOME/bin/*.tar.gz \
+        $CATALINA_HOME/bin/catalina-tasks.xml \
+        $CATALINA_HOME/BUILDING.txt \
+        $CATALINA_HOME/CONTRIBUTING.md \
+        $CATALINA_HOME/README.md \
+        $CATALINA_HOME/RELEASE-NOTES \
+        $CATALINA_HOME/RUNNING.txt && \
+    \
     chmod +x $CATALINA_HOME/bin/*.sh && \
     chown -R $APPLICATION_USER:$APPLICATION_USER $CATALINA_HOME
 
