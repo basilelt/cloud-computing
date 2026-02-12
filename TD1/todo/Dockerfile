@@ -1,29 +1,28 @@
 # First stage, build the custom JRE
-FROM eclipse-temurin:17-jdk AS jre-builder
+FROM azul/zulu-openjdk-alpine:17 AS jre-builder
 
 # Install binutils, required by jlink
-RUN apt-get update -y &&  \
-    apt-get install -y binutils
+RUN apk add --no-cache binutils && \
+    rm -rf /var/cache/apk/*
 
 # Build small JRE image
 RUN $JAVA_HOME/bin/jlink \
     --verbose \
-    --add-modules java.base,java.compiler,java.desktop,java.instrument,java.management,java.naming,java.net.http,java.prefs,java.rmi,java.scripting,java.security.jgss,java.sql,jdk.jfr,jdk.unsupported \
+    --add-modules java.base,java.management,java.naming,java.sql,java.desktop,java.security.jgss,java.instrument,jdk.unsupported \
     --strip-debug \
     --no-man-pages \
     --no-header-files \
     --compress=2 \
     --output /optimized-jdk-17
 
-# Second stage, Use the custom JRE and build the app image with Tomcat
-FROM debian:bookworm-slim
 
-# Install required packages for Tomcat
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    curl \
-    ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
+# Second stage, Use the custom JRE and build the app image with Tomcat
+FROM alpine:3
+
+RUN apk update && \
+    apk upgrade && \
+    apk add --no-cache curl && \
+    rm -rf /var/cache/apk/*
 
 # Set Java home and path
 ENV JAVA_HOME=/opt/jdk/jdk-17
@@ -35,10 +34,10 @@ COPY --from=jre-builder /optimized-jdk-17 $JAVA_HOME
 # Install Tomcat
 ENV CATALINA_HOME=/opt/tomcat
 ENV PATH="${CATALINA_HOME}/bin:${PATH}"
-ENV TOMCAT_VERSION=9.0.102
+ENV TOMCAT_VERSION=9.0.115
 
 # Download and install Tomcat 9
-RUN curl -SL https://archive.apache.org/dist/tomcat/tomcat-9/v$TOMCAT_VERSION/bin/apache-tomcat-$TOMCAT_VERSION.tar.gz | tar -xzC /opt && \
+RUN curl -SL https://downloads.apache.org/tomcat/tomcat-9/v$TOMCAT_VERSION/bin/apache-tomcat-$TOMCAT_VERSION.tar.gz | tar -xzC /opt && \
     mv /opt/apache-tomcat-$TOMCAT_VERSION $CATALINA_HOME && \
     rm -rf $CATALINA_HOME/webapps/* && \
     chown -R root:root $CATALINA_HOME && \
@@ -48,8 +47,8 @@ RUN curl -SL https://archive.apache.org/dist/tomcat/tomcat-9/v$TOMCAT_VERSION/bi
 ARG APPLICATION_USER=tomcat
 
 # Create a user to run the application, don't run as root
-RUN groupadd -r $APPLICATION_USER && \
-    useradd -r -g $APPLICATION_USER $APPLICATION_USER
+RUN addgroup -S $APPLICATION_USER && \
+    adduser -S -G $APPLICATION_USER $APPLICATION_USER
 
 # Create required Tomcat directories and set permissions
 RUN mkdir -p $CATALINA_HOME/conf $CATALINA_HOME/logs $CATALINA_HOME/temp $CATALINA_HOME/work && \
