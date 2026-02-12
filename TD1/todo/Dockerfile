@@ -48,13 +48,10 @@ ARG APPLICATION_USER=tomcat
 
 # Create a user to run the application, don't run as root
 RUN addgroup -S $APPLICATION_USER && \
-    adduser -S -G $APPLICATION_USER $APPLICATION_USER
+    adduser -S -G $APPLICATION_USER $APPLICATION_USER && \
+    chown -R $APPLICATION_USER:$APPLICATION_USER $CATALINA_HOME/*
 
-# Create required Tomcat directories and set permissions
-RUN mkdir -p $CATALINA_HOME/conf $CATALINA_HOME/logs $CATALINA_HOME/temp $CATALINA_HOME/work && \
-    chown -R $APPLICATION_USER:$APPLICATION_USER $CATALINA_HOME/bin $CATALINA_HOME/conf $CATALINA_HOME/lib $CATALINA_HOME/logs $CATALINA_HOME/temp $CATALINA_HOME/webapps $CATALINA_HOME/work
-
-# Copy the WAR file to Tomcat's webapps directory as ROOT.war
+    # Copy the WAR file to Tomcat's webapps directory as ROOT.war
 COPY --chown=$APPLICATION_USER:$APPLICATION_USER todo-app.war $CATALINA_HOME/webapps/ROOT.war
 
 WORKDIR $CATALINA_HOME
