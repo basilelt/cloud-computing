@@ -36,22 +36,27 @@ ENV CATALINA_HOME=/opt/tomcat
 ENV PATH="${CATALINA_HOME}/bin:${PATH}"
 ENV TOMCAT_VERSION=9.0.115
 
-# Download and install Tomcat 9
-RUN curl -SL https://downloads.apache.org/tomcat/tomcat-9/v$TOMCAT_VERSION/bin/apache-tomcat-$TOMCAT_VERSION.tar.gz | tar -xzC /opt && \
-    mv /opt/apache-tomcat-$TOMCAT_VERSION $CATALINA_HOME && \
-    rm -rf $CATALINA_HOME/webapps/* && \
-    chown -R root:root $CATALINA_HOME && \
-    chmod +x $CATALINA_HOME/bin/*.sh
-
 # Add app user
 ARG APPLICATION_USER=tomcat
 
-# Create a user to run the application, don't run as root
+# Create user, install Tomcat, set ownership — all in one layer to avoid duplication
 RUN addgroup -S $APPLICATION_USER && \
     adduser -S -G $APPLICATION_USER $APPLICATION_USER && \
-    chown -R $APPLICATION_USER:$APPLICATION_USER $CATALINA_HOME/*
+    curl -SL https://downloads.apache.org/tomcat/tomcat-9/v$TOMCAT_VERSION/bin/apache-tomcat-$TOMCAT_VERSION.tar.gz | tar -xzC /opt && \
+    mv /opt/apache-tomcat-$TOMCAT_VERSION $CATALINA_HOME && \
+    rm -rf $CATALINA_HOME/webapps/* \
+    $CATALINA_HOME/bin/*.bat \
+    $CATALINA_HOME/bin/*.tar.gz \
+    $CATALINA_HOME/bin/catalina-tasks.xml \
+    $CATALINA_HOME/BUILDING.txt \
+    $CATALINA_HOME/CONTRIBUTING.md \
+    $CATALINA_HOME/README.md \
+    $CATALINA_HOME/RELEASE-NOTES \
+    $CATALINA_HOME/RUNNING.txt && \
+    chmod +x $CATALINA_HOME/bin/*.sh && \
+    chown -R $APPLICATION_USER:$APPLICATION_USER $CATALINA_HOME
 
-    # Copy the WAR file to Tomcat's webapps directory as ROOT.war
+# Copy the WAR file to Tomcat's webapps directory as ROOT.war
 COPY --chown=$APPLICATION_USER:$APPLICATION_USER todo-app.war $CATALINA_HOME/webapps/ROOT.war
 
 WORKDIR $CATALINA_HOME
