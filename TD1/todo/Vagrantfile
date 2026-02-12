@@ -1,0 +1,157 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.require_version ">= 1.6.0"
+
+def read_bool_env key, default_value = false
+    key = key.to_s
+    if ENV.include?(key)
+      return ! (['no', 'off', 'false', '0']).include?(ENV[key].strip.downcase)
+    else
+      return default_value
+    end
+end
+  
+def read_env key, default_value = nil, false_value = false
+    key = key.to_s
+    if ENV.include?(key)
+        val = ENV[key].strip
+        if  (['no', 'off', 'false', '0']).include? val
+            return false_value
+        else
+            return val
+        end
+    else
+        return default_value
+    end
+end
+
+required_plugins = []
+required_plugins << 'vagrant-scp' if read_bool_env 'SCP', true
+
+plugins_to_install = required_plugins.select { |plugin| not Vagrant.has_plugin? plugin }
+if not plugins_to_install.empty?
+  puts "Installing plugins: #{plugins_to_install.join(' ')}"
+  if system "vagrant plugin install #{plugins_to_install.join(' ')}"
+    exec "vagrant #{ARGV.join(' ')}"
+  else
+    abort "Installation of one or more plugins has failed. Aborting."
+  end
+end
+
+memory = read_env 'MEM', '2048'
+cpus = read_env 'CPU', '1'
+
+locale = (read_env "LC_ALL", "fr_FR").split('.')[0]
+
+box = read_env 'BOX', 'bento/debian-12' # must be debian-based
+box_url = read_env 'BOX_URL', false # e.g. https://svn.ensisa.uha.fr/bd/vg/microk8s.json
+# Box-dependent
+vagrant_user = read_env 'VAGRANT_GUEST_USER', 'vagrant'
+upgrade = read_bool_env 'UPGRADE'
+
+ip = (read_env 'IP', "192.168.80.100").split('.').map {|nbr| nbr.to_i}.join('.') # private ip
+hostname = read_env 'HOSTNAME', 'docker'
+
+guest_additions = read_bool_env 'GUEST_ADDITIONS', false
+
+private = read_bool_env 'PRIVATE', true
+
+itf = 'eth1' # depends on chosen box
+host_ip_script = "ip -4 addr list #{itf} |  grep -v secondary | grep inet | sed 's/.*inet\\s*\\([0-9.]*\\).*/\\1/'"
+
+init = read_bool_env 'INIT', true
+
+Vagrant.configure("2") do |config|
+    config.vm.define hostname
+    # always use Vagrants insecure key
+    config.ssh.insert_key = false
+    # forward ssh agent to easily ssh into the different machines
+    config.ssh.forward_agent = true
+    config.vm.box = box
+    begin config.vm.box_url = box_url if box_url rescue nil end
+
+    config.vm.synced_folder ".", "/vagrant", disabled: true
+    config.vm.synced_folder ".", "/home/vagrant/sync", disabled: true
+
+    config.vm.provider :virtualbox do |vb|
+        #config.timezone.value = :host
+        vb.check_guest_additions = guest_additions
+        vb.functional_vboxsf     = false
+        if Vagrant.has_plugin?("vagrant-vbguest") then
+            config.vbguest.auto_update = upgrade
+        end
+    end
+
+    # Generic
+    config.vm.provision "Aliases", :type => "shell", :name => "Setting up aliases", :inline => "
+        grep -q 'alias ll=' /etc/bash.bashrc || echo 'alias ll=\"ls -alh\"' >> /etc/bash.bashrc
+    "
+    config.vm.provision "Upgrade", :type => "shell", :name => "Upgrading system", :inline => "
+        export APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=1
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update
+        apt-get dist-upgrade --yes
+        apt-get -y autoremove
+        apt-get -y autoclean
+    " if upgrade
+
+    config.vm.provision "Setting #{locale} locale", :name => "locale", :type => "shell", :inline => "
+      if [ $(localectl status | grep LANG | cut -f2 -d= | cut -d. -f1) != \"#{locale}\" ]; then
+        sed -i 's/^#\\s*#{locale}.UTF-8/#{locale}.UTF-8/' /etc/locale.gen;
+        locale-gen && localectl set-locale LANG=#{locale}.UTF-8
+      fi
+    "
+
+    config.vm.hostname = hostname
+    config.vm.provider :virtualbox do |vb, override|
+        vb.memory = memory
+        vb.cpus =  cpus
+        vb.customize [
+          'modifyvm', :id,
+          '--name', hostname,
+          '--cpuexecutioncap', '100',
+          '--paravirtprovider', 'kvm',
+          '--natdnshostresolver1', 'on',
+          '--natdnsproxy1', 'on',
+        ]
+    end
+
+    config.vm.network :private_network, ip: ip
+
+    config.vm.provision "DockerRepo", :type => "shell", :name => "Checking Docker package repo", :inline => "
+        if ! apt-cache policy | grep -q docker; then
+          export APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=1
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          dpkg -s ca-certificates > /dev/null || apt-get install -y ca-certificates
+          dpkg -s curl > /dev/null || apt-get install -y curl
+          install -m 0755 -d /etc/apt/keyrings
+          curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+          chmod a+r /etc/apt/keyrings/docker.asc
+
+          echo \"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo \"$VERSION_CODENAME\") stable\" > /etc/apt/sources.list.d/docker.list
+          apt-get update
+        fi
+    "
+
+    config.vm.provision "DockerInstall", :type => "shell", :name => "Installing Docker", :inline => "
+        if ! which docker >/dev/null 2>&1; then
+          export APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=1
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+        fi
+    "
+
+    config.vm.provision "DockerGroup", :type => "shell", :name => "Adding default user to group", :inline => "
+        if ! groups #{vagrant_user} | grep -wq docker; then
+          usermod -G docker #{vagrant_user}
+          echo \"User #{vagrant_user} set as a docker user\"
+        fi
+    "
+    config.vm.provision "ShowIP", :type => "shell", :name => "Show ip of machine", :inline => "
+        echo \"Log-in this machine using \\`vagrant ssh\\`\"
+        echo \"This machine is locally available with ip $(#{host_ip_script})\"
+    "
+end # config
