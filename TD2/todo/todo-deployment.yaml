@@ -26,6 +26,14 @@ spec:
       labels:
         app: todo
     spec:
+      initContainers:
+      - name: wait-for-mysql
+        image: toschneck/wait-for-it:latest
+        command:
+        - /wait-for-it.sh
+        - mysql:3306
+        - --timeout=120
+        - --strict
       containers:
       - image: registry:5000/todo:latest
         name: todo

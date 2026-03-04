@@ -16,8 +16,16 @@ This folder contains the Kubernetes manifests for the `todo` app, MySQL, and a l
 - Problem: image pull is done by node containerd, not pod DNS. Node runtime could not resolve/reach `registry:5000`.
 - Fix: configure k3s registry mirror so `registry:5000` resolves to the k3d load balancer NodePort endpoint.
 
-Current image in `todo-deployment.yaml`:
+4. TODO startup before MySQL was ready
+- Problem: if TODO starts before DB is reachable, it falls back to in-memory storage.
+- Fix: add an `initContainer` with `toschneck/wait-for-it` that blocks until `mysql:3306` accepts connections.
+
+5. External HTTP access through Ingress
+- Fix: add `todo-ingress.yaml` with a `/` path rule and no hostname constraint.
+
+Current image and startup behavior in `todo-deployment.yaml`:
 - `registry:5000/todo:latest`
+- init container waits for `mysql:3306` before app container starts
 
 ## YAML for Registry Runtime Config (k3d)
 
@@ -26,6 +34,7 @@ Use `k3d-registry-config.yaml` when creating the cluster:
 ```bash
 k3d cluster create k3s-default \
   --agents 2 \
+  -p "80:80@loadbalancer" \
   -p "30500:30500@loadbalancer" \
   --registry-config TD2/todo/k3d-registry-config.yaml
 ```
@@ -45,6 +54,7 @@ kubectl apply -k TD2/todo
 - mysql PV/PVC + deployment/service
 - registry PV/PVC + deployment/service
 - todo deployment/service
+- todo ingress (`/` path)
 
 ## End-to-End Flow
 
@@ -62,10 +72,27 @@ docker tag todo:latest 127.0.0.1:30500/todo:latest
 docker push 127.0.0.1:30500/todo:latest
 ```
 
-3. Verify image pull from Kubernetes:
+3. Verify image pull and MySQL wait from Kubernetes:
 
 ```bash
 kubectl describe pod -l app=todo
 ```
 
-Look for `Successfully pulled image "registry:5000/todo:latest"` in events.
+Look for:
+- `Successfully pulled image "registry:5000/todo:latest"` in events
+- `Init Containers:` section with `wait-for-mysql` completed successfully
+
+4. Verify app is reachable from inside cluster:
+
+```bash
+kubectl get svc todo
+SVC_IP=$(kubectl get svc todo -o jsonpath='{.spec.clusterIP}')
+docker exec k3d-k3s-default-server-0 sh -lc "wget -qO- http://$SVC_IP:8080 | head -n 5"
+```
+
+5. Verify app is reachable from outside via Ingress:
+
+```bash
+kubectl get ingress todo
+curl -L http://127.0.0.1/
+```

@@ -7,3 +7,4 @@ resources:
   - registry-pv.yaml
   - registry-deployment.yaml
   - todo-deployment.yaml
+  - todo-ingress.yaml
