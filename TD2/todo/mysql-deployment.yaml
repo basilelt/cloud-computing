@@ -28,15 +28,20 @@ spec:
       - image: mysql:9
         name: mysql
         env:
-          # Use secret in real usage
         - name: MYSQL_ROOT_PASSWORD
-          value: password
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: mysql-root-password
         - name: MYSQL_DATABASE
           value: todo
         - name: MYSQL_USER
           value: todo
         - name: MYSQL_PASSWORD
-          value: todo
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: mysql-password
         ports:
         - containerPort: 3306
           name: mysql
@@ -49,8 +54,8 @@ spec:
             - /bin/sh
             - -c
             - mysqladmin ping -h 127.0.0.1 --protocol=tcp -u root -p"${MYSQL_ROOT_PASSWORD}"
-          initialDelaySeconds: 5
-          periodSeconds: 5
+          initialDelaySeconds: 10
+          periodSeconds: 10
       volumes:
       - name: mysql-persistent-storage
         persistentVolumeClaim:
