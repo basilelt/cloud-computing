@@ -3,11 +3,13 @@ kind: Service
 metadata:
   name: registry
 spec:
+  type: NodePort
   ports:
   - port: 5000
+    targetPort: 5000
+    nodePort: 30500
   selector:
     app: registry
-  clusterIP: None
 ---
 apiVersion: apps/v1
 kind: Deployment
