@@ -42,7 +42,7 @@ spec:
           valueFrom:
             secretKeyRef:
               name: mysql-secret
-              key: mysql-root-password
+              key: mysql-password
         - name: RDS_OPTIONS
           value: useSSL=false&allowPublicKeyRetrieval=true
         - name: AUTH
@@ -54,5 +54,22 @@ spec:
           httpGet:
             path: /
             port: 8080
-          initialDelaySeconds: 5
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 6
+        startupProbe:
+          httpGet:
+            path: /
+            port: 8080
           periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 24
