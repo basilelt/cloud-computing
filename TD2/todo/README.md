@@ -39,7 +39,18 @@ k3d cluster create k3s-default \
   --registry-config TD2/todo/k3d-registry-config.yaml
 ```
 
-If your cluster already exists, you can still apply the same config inside nodes and restart the cluster.
+Important:
+- `todo-deployment.yaml` pulls `registry:5000/todo:latest`.
+- If you create the cluster with `TD2/reg.yml` (used in `proxy.sh` comments), add the `registry:5000` mirror there too, or use `TD2/todo/k3d-registry-config.yaml` directly.
+
+If your cluster already exists, apply the config and restart k3d nodes:
+
+```bash
+for n in k3d-k3s-default-server-0 k3d-k3s-default-agent-0 k3d-k3s-default-agent-1; do
+  docker cp TD2/todo/k3d-registry-config.yaml ${n}:/etc/rancher/k3s/registries.yaml
+done
+docker restart k3d-k3s-default-server-0 k3d-k3s-default-agent-0 k3d-k3s-default-agent-1
+```
 
 ## YAML for Kubernetes Apply
 
@@ -76,11 +87,15 @@ docker push 127.0.0.1:30500/todo:latest
 
 ```bash
 kubectl describe pod -l app=todo
+kubectl get pod -l app=todo
 ```
 
 Look for:
 - `Successfully pulled image "registry:5000/todo:latest"` in events
 - `Init Containers:` section with `wait-for-mysql` completed successfully
+- `READY` is `1/1` and `STATUS` is `Running`
+
+Note: after a fix, `kubectl describe` can still show older failed pull events. Check current state with `kubectl get pod -l app=todo`.
 
 4. Verify app is reachable from inside cluster:
 
