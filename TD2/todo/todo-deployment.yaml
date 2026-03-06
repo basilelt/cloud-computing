@@ -16,6 +16,7 @@ kind: Deployment
 metadata:
   name: todo
 spec:
+  replicas: 3
   selector:
     matchLabels:
       app: todo
@@ -54,7 +55,7 @@ spec:
         - name: RDS_OPTIONS
           value: useSSL=false&allowPublicKeyRetrieval=true
         - name: AUTH
-          value: "false"
+          value: "true"
         ports:
         - containerPort: 8080
           name: todo

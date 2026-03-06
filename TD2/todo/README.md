@@ -23,9 +23,15 @@ This folder contains the Kubernetes manifests for the `todo` app, MySQL, and a l
 5. External HTTP access through Ingress
 - Fix: add `todo-ingress.yaml` with a `/` path rule and no hostname constraint.
 
-Current image and startup behavior in `todo-deployment.yaml`:
+Current image, scaling and session behavior in `todo-deployment.yaml`:
 - `registry:5000/todo:latest`
+- `replicas: 3`
+- `AUTH: "true"`
 - init container waits for `mysql:3306` before app container starts
+
+Current sticky-session behavior in `todo-ingress.yaml`:
+- Traefik sticky cookie enabled
+- cookie name: `todo_route` (separate from app cookie `sid`)
 
 ## YAML for Registry Runtime Config (k3d)
 
@@ -110,4 +116,42 @@ docker exec k3d-k3s-default-server-0 sh -lc "wget -qO- http://$SVC_IP:8080 | hea
 ```bash
 kubectl get ingress todo
 curl -L http://127.0.0.1/
+```
+
+## Scaling and Sticky Sessions (No Hazelcast)
+
+This setup intentionally uses sticky sessions only (no Hazelcast session sharing).
+
+### Deploy and verify 3 replicas
+
+```bash
+kubectl apply -k TD2/todo
+kubectl rollout status deployment/todo --timeout=180s
+kubectl get pods -l app=todo
+```
+
+Expected result:
+- `3` pods with label `app=todo`
+- all pods `Running` and `READY 1/1`
+
+### Validate sticky session behavior
+
+1. Open the app and log in (`/auth` flow).
+2. In browser dev tools, confirm both cookies exist:
+- `sid` (application session cookie)
+- `todo_route` (Traefik sticky routing cookie)
+3. Refresh `/list` multiple times and confirm backend stays stable:
+- check `meta[name="hostname"]` in page source/dev tools
+- hostname should remain the same while the target pod is alive
+
+### Known limitation without Hazelcast
+
+- If the target pod restarts or is deleted, the in-memory session is lost.
+- Replaying requests with old cookies redirects back to `/auth`.
+
+Example validation:
+
+```bash
+kubectl get pods -l app=todo -o wide
+kubectl delete pod <pod-name>
 ```
