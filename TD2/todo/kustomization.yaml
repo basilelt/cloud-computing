@@ -6,5 +6,6 @@ resources:
   - mysql-deployment.yaml
   - registry-pv.yaml
   - registry-deployment.yaml
+  - hazelcast-rbac.yaml
   - todo-deployment.yaml
   - todo-ingress.yaml

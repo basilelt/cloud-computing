@@ -27,6 +27,7 @@ spec:
       labels:
         app: todo
     spec:
+      serviceAccountName: todo-hazelcast
       initContainers:
       - name: wait-for-mysql
         image: toschneck/wait-for-it:latest
@@ -56,6 +57,10 @@ spec:
           value: useSSL=false&allowPublicKeyRetrieval=true
         - name: AUTH
           value: "true"
+        - name: HAZELCAST_KUBERNETES_SERVICE_NAME
+          value: todo
+        - name: HAZELCAST_KUBERNETES_NAMESPACE
+          value: default
         ports:
         - containerPort: 8080
           name: todo

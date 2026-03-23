@@ -88,6 +88,18 @@ public class MvcConfiguration implements WebMvcConfigurer {
 		Config config = new Config();
 		config.setInstanceName("todo-hazelcast");
 		config.addMapConfig(mapConfig);
+
+		// In Kubernetes, use the K8s API to discover other members via the "todo" service.
+		// Outside Kubernetes (local dev), fall back to multicast.
+		String kubeServiceName = getEnv("HAZELCAST_KUBERNETES_SERVICE_NAME");
+		if (kubeServiceName != null && !kubeServiceName.isEmpty()) {
+			config.getNetworkConfig().getJoin().getMulticastConfig().setEnabled(false);
+			config.getNetworkConfig().getJoin().getKubernetesConfig()
+					.setEnabled(true)
+					.setProperty("service-name", kubeServiceName)
+					.setProperty("namespace", getEnvDefault("default", "HAZELCAST_KUBERNETES_NAMESPACE"));
+		}
+
 		return Hazelcast.newHazelcastInstance(config);
 	}
 
