@@ -2,6 +2,8 @@ package fr.uha.ensisa.ff.todo.app.config;
 
 import java.beans.PropertyVetoException;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -89,15 +91,22 @@ public class MvcConfiguration implements WebMvcConfigurer {
 		config.setInstanceName("todo-hazelcast");
 		config.addMapConfig(mapConfig);
 
-		// In Kubernetes, use the K8s API to discover other members via the "todo" service.
-		// Outside Kubernetes (local dev), fall back to multicast.
-		String kubeServiceName = getEnv("HAZELCAST_KUBERNETES_SERVICE_NAME");
-		if (kubeServiceName != null && !kubeServiceName.isEmpty()) {
-			config.getNetworkConfig().getJoin().getMulticastConfig().setEnabled(false);
-			config.getNetworkConfig().getJoin().getKubernetesConfig()
-					.setEnabled(true)
-					.setProperty("service-name", kubeServiceName)
-					.setProperty("namespace", getEnvDefault("default", "HAZELCAST_KUBERNETES_NAMESPACE"));
+		// Detect Kubernetes by reading the namespace from the service account file.
+		// If present, use DNS-based discovery via a headless service (no K8s API needed).
+		// Outside Kubernetes, fall back to default multicast discovery.
+		try {
+			String namespace = new String(Files.readAllBytes(
+					Paths.get("/var/run/secrets/kubernetes.io/serviceaccount/namespace"))).trim();
+			String serviceName = getEnv("HAZELCAST_SERVICE_NAME");
+			if (serviceName != null && !serviceName.isEmpty()) {
+				String serviceDns = serviceName + "." + namespace + ".svc.cluster.local";
+				config.getNetworkConfig().getJoin().getMulticastConfig().setEnabled(false);
+				config.getNetworkConfig().getJoin().getKubernetesConfig()
+						.setEnabled(true)
+						.setProperty("service-dns", serviceDns);
+			}
+		} catch (IOException e) {
+			// Not running in Kubernetes — use default multicast discovery
 		}
 
 		return Hazelcast.newHazelcastInstance(config);
