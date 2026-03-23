@@ -16,6 +16,8 @@ import java.util.Enumeration;
 import java.util.Map;
 
 import com.hazelcast.config.Config;
+import com.hazelcast.config.MapConfig;
+import com.hazelcast.config.NearCacheConfig;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 
@@ -70,9 +72,23 @@ public class MvcConfiguration implements WebMvcConfigurer {
 	
 	@Bean(destroyMethod = "shutdown")
 	public HazelcastInstance getHazelcastInstance() {
+		int ttlSeconds = SessionInterceptor.SessionTimeoutS + 5;
+
+		NearCacheConfig nearCacheConfig = new NearCacheConfig("todo-sessions")
+				.setTimeToLiveSeconds(ttlSeconds)
+				.setMaxIdleSeconds(SessionInterceptor.SessionTimeoutS)
+				.setInvalidateOnChange(true);
+
+		MapConfig mapConfig = new MapConfig("todo-sessions")
+				.setBackupCount(0)
+				.setAsyncBackupCount(1)
+				.setTimeToLiveSeconds(ttlSeconds)
+				.setNearCacheConfig(nearCacheConfig);
+
 		Config config = new Config();
 		config.setInstanceName("todo-hazelcast");
-		return Hazelcast.getOrCreateHazelcastInstance(config);
+		config.addMapConfig(mapConfig);
+		return Hazelcast.newHazelcastInstance(config);
 	}
 
 	@Bean
