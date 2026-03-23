@@ -4,6 +4,7 @@ metadata:
   name: todo-hazelcast
 spec:
   clusterIP: None
+  publishNotReadyAddresses: true
   selector:
     app: todo
   ports:
