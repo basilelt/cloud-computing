@@ -57,10 +57,8 @@ spec:
           value: useSSL=false&allowPublicKeyRetrieval=true
         - name: AUTH
           value: "true"
-        - name: HAZELCAST_KUBERNETES_SERVICE_NAME
-          value: todo
-        - name: HAZELCAST_KUBERNETES_NAMESPACE
-          value: default
+        - name: HAZELCAST_SERVICE_NAME
+          value: todo-hazelcast
         ports:
         - containerPort: 8080
           name: todo

@@ -7,5 +7,6 @@ resources:
   - registry-pv.yaml
   - registry-deployment.yaml
   - hazelcast-rbac.yaml
+  - todo-headless-service.yaml
   - todo-deployment.yaml
   - todo-ingress.yaml
