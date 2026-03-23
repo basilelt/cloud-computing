@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<artifactId>todo-app</artifactId>
+	<packaging>war</packaging>
+
+	<scm>
+		<connection>scm:hg:https://svn.ensisa.uha.fr/scm/hg/IGA1516-FF-APP</connection>
+	</scm>
+
+	<parent>
+		<groupId>fr.uha.ensisa.ff</groupId>
+		<version>0.0.1-SNAPSHOT</version>
+		<artifactId>parent</artifactId>
+	</parent>
+
+	<properties>
+		<skip.it>true</skip.it>
+		<servlet.port>8080</servlet.port>
+		<jetty.stop.port>9000</jetty.stop.port>
+		<jetty.version>10.0.8</jetty.version>
+		<spring.version>5.3.17</spring.version>
+		<cglib.version>3.3.0</cglib.version>
+	</properties>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>net.bytebuddy</groupId>
+				<artifactId>byte-buddy</artifactId>
+				<version>1.12.8</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+
+	<dependencies>
+
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>todo-dao-mem</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>todo-dao-sql</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-webmvc</artifactId>
+			<version>${spring.version}</version>
+		</dependency>
+
+		<!-- CGLib for @Configuration -->
+		<dependency>
+			<groupId>cglib</groupId>
+			<artifactId>cglib-nodep</artifactId>
+			<version>${cglib.version}</version>
+			<scope>runtime</scope>
+		</dependency>
+
+		<!-- Servlet Spec -->
+		<dependency>
+			<groupId>javax.servlet</groupId>
+			<artifactId>javax.servlet-api</artifactId>
+			<version>4.0.1</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>javax.annotation</groupId>
+			<artifactId>javax.annotation-api</artifactId>
+			<version>1.3.2</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>jstl</artifactId>
+            <version>1.2</version>
+        </dependency>
+
+		<dependency>
+			<groupId>mysql</groupId>
+			<artifactId>mysql-connector-java</artifactId>
+			<version>8.0.28</version>
+			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<version>42.3.3</version>
+			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.mchange</groupId>
+			<artifactId>c3p0</artifactId>
+			<version>0.9.5.5</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.hazelcast</groupId>
+			<artifactId>hazelcast</artifactId>
+			<version>5.3.6</version>
+		</dependency>
+		
+		<dependency>
+			<groupId>org.seleniumhq.selenium</groupId>
+			<artifactId>selenium-java</artifactId>
+			<version>4.1.3</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-core</artifactId>
+			<version>4.4.0</version>
+			<scope>test</scope>
+		</dependency>
+
+	</dependencies>
+
+	<repositories>
+		<repository>
+			<id>springsource-milestones</id>
+			<name>SpringSource Milestones Proxy</name>
+			<url>https://oss.sonatype.org/content/repositories/springsource-milestones</url>
+		</repository>
+	</repositories>
+
+	<build>
+		<finalName>todo-app</finalName>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.10.1</version>
+				<configuration>
+					<source>${java.version}</source>
+					<target>${java.version}</target>
+				</configuration>
+			</plugin>
+			
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-war-plugin</artifactId>
+				<version>3.3.2</version>
+			</plugin>
+
+			<plugin>
+				<groupId>org.eclipse.jetty</groupId>
+				<artifactId>jetty-maven-plugin</artifactId>
+				<version>${jetty.version}</version>
+				<configuration>
+					<httpConnector>
+						<port>${servlet.port}</port>
+					</httpConnector>
+					<jvmArgs>-Djava.net.preferIPv4Stack=true</jvmArgs>
+					<stopKey>quit</stopKey>
+					<stopPort>${jetty.stop.port}</stopPort>
+					<webApp>
+						<contextPath>/</contextPath>
+					</webApp>
+					<scan>5</scan>
+					<scanTargetPatterns>
+						<scanTargetPattern>
+							<directory>src/main/webapp/WEB-INF</directory>
+							<includes>
+								<include>**/*.jsp</include>
+								<include>**/*.html</include>
+							</includes>
+							<excludes>
+								<include>**/*.properties</include>
+							</excludes>
+						</scanTargetPattern>
+					</scanTargetPatterns>
+				</configuration>
+				<executions>
+					<execution>
+						<id>start-it</id>
+						<phase>pre-integration-test</phase>
+						<goals>
+							<goal>start</goal>
+						</goals>
+						<configuration>
+							<skip>${skip.it}</skip>
+							<scan>0</scan>
+							<daemon>true</daemon>
+						</configuration>
+					</execution>
+					<execution>
+						<id>stop-it</id>
+						<phase>post-integration-test</phase>
+						<goals>
+							<goal>stop</goal>
+						</goals>
+						<configuration>
+							<skip>${skip.it}</skip>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-failsafe-plugin</artifactId>
+				<configuration>
+					<skipITs>${skip.it}</skipITs>
+				</configuration>
+				<executions>
+					<execution>
+						<id>perform-it</id>
+						<goals>
+							<goal>integration-test</goal>
+						</goals>
+						<configuration>
+							<systemProperties>
+								<property>
+									<name>servlet.port</name>
+									<value>${servlet.port}</value>
+								</property>
+								<property>
+									<name>name</name>
+									<value>${project.name}</value>
+								</property>
+							</systemProperties>
+						</configuration>
+					</execution>
+					<execution>
+						<id>verify-it</id>
+						<goals>
+							<goal>verify</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<version>2.3</version>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>copy</goal>
+						</goals>
+						<configuration>
+							<artifactItems>
+								<artifactItem>
+									<groupId>org.eclipse.jetty</groupId>
+									<artifactId>jetty-runner</artifactId>
+									<version>${jetty.version}</version>
+									<destFileName>jetty-runner.jar</destFileName>
+								</artifactItem>
+							</artifactItems>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+</project>
