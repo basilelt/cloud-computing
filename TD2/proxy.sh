@@ -1,5 +1,10 @@
 #!/bin/bash
 
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR"
+
 k3d cluster create --registry-config reg.yml --agents=2 -p "80:80@server:0" -p "30500:30500@agent:0"
 
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/alternative.yaml
@@ -9,7 +14,9 @@ kubectl apply -f script.yml
 
 kubectl -n kubernetes-dashboard create clusterrolebinding --clusterrole cluster-admin --serviceaccount kubernetes-dashboard:admin-user admin-user
 
+echo "\n"
 kubectl -n kubernetes-dashboard get secret admin-user-token -o go-template="{{.data.token | base64decode}}"
+echo "\n"
 
 kubectl proxy \
   --port=8001 \
