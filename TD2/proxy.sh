@@ -14,12 +14,14 @@ kubectl apply -f script.yml
 
 kubectl -n kubernetes-dashboard create clusterrolebinding --clusterrole cluster-admin --serviceaccount kubernetes-dashboard:admin-user admin-user
 
-echo "\n"
+echo ""
 kubectl -n kubernetes-dashboard get secret admin-user-token -o go-template="{{.data.token | base64decode}}"
-echo "\n"
+echo ""
+echo ""
+echo "Dashboard URL: http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/kubernetes-dashboard:80/proxy/#/workloads?namespace=default"
+echo ""
 
 kubectl proxy \
   --port=8001 \
   --address=0.0.0.0 \
   --accept-hosts='^home$,^192\.168\.27\.65$,^localhost$,^127\.0\.0\.1$'
-
