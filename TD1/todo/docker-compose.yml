@@ -54,6 +54,12 @@ services:
       - traefik.http.routers.todo.service=todo
       - traefik.http.services.todo.loadbalancer.server.port=8080
       - traefik.docker.network=todo_todo-lb
+    healthcheck:
+      test: "curl -f http://localhost:8080 || exit 1"
+      interval: 30s
+      timeout: 30s
+      start_period: 5s
+      retries: 3
     depends_on:
       traefik:
         condition: service_healthy

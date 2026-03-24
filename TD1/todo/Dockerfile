@@ -62,7 +62,7 @@ RUN apk update && \
     chmod +x $CATALINA_HOME/bin/*.sh && \
     chown -R $APPLICATION_USER:$APPLICATION_USER $CATALINA_HOME
 
-# Copy the WAR file to Tomcat's webapps directory as ROOT.war
+# Copy the WAR file to Tomcat webapps directory as ROOT.war
 COPY --chown=$APPLICATION_USER:$APPLICATION_USER todo-app.war $CATALINA_HOME/webapps/ROOT.war
 
 WORKDIR $CATALINA_HOME
@@ -70,6 +70,8 @@ WORKDIR $CATALINA_HOME
 USER $APPLICATION_USER
 
 EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 CMD [ "curl", "-f", "http://localhost:8080" ]
 
 # Start Tomcat
 ENTRYPOINT ["catalina.sh", "run"]
