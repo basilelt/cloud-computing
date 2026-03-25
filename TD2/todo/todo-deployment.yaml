@@ -71,6 +71,10 @@ spec:
         ports:
         - containerPort: 8080
           name: todo
+        # livenessProbe: answers "is the container still alive?"
+        # If it fails, Kubernetes RESTARTS the container.
+        # Use it to detect deadlocks or broken states that can't self-recover.
+        # Here: checked every 10s, 3 consecutive failures → restart.
         livenessProbe:
           httpGet:
             path: /
@@ -79,6 +83,10 @@ spec:
           periodSeconds: 10
           timeoutSeconds: 5
           failureThreshold: 3
+        # readinessProbe: answers "is the container ready to receive traffic?"
+        # If it fails, the pod is removed from the Service endpoints (no restart).
+        # Use it to signal "I'm still starting up" or "I'm temporarily overloaded".
+        # Higher failureThreshold (6) than liveness: we'd rather wait than restart.
         readinessProbe:
           httpGet:
             path: /
@@ -87,6 +95,10 @@ spec:
           periodSeconds: 10
           timeoutSeconds: 5
           failureThreshold: 6
+        # startupProbe: answers "has the container finished its initial startup?"
+        # Liveness and readiness probes are DISABLED until startupProbe succeeds.
+        # Prevents liveness from killing a slow-starting container too early.
+        # Max startup time here = periodSeconds * failureThreshold = 5 * 24 = 120s.
         startupProbe:
           httpGet:
             path: /

@@ -44,12 +44,34 @@ spec:
         volumeMounts:
         - name: registry-persistent-storage
           mountPath: /var/lib/registry
+        # startupProbe: waits for the registry HTTP API to become available.
+        # The registry starts quickly, so max startup time = 5 * 12 = 60s.
+        startupProbe:
+          httpGet:
+            path: /v2/_catalog
+            port: 5000
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 12
+        # livenessProbe: restarts the container if the registry stops responding.
+        # /v2/_catalog is the Docker Registry API endpoint that lists repositories —
+        # a lightweight call that confirms the registry is alive and its API is functional.
         livenessProbe:
           httpGet:
             path: /v2/_catalog
             port: 5000
-          initialDelaySeconds: 5
           periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 3
+        # readinessProbe: removes the pod from Service endpoints if the registry is not ready.
+        # Prevents routing push/pull requests to a temporarily unavailable registry.
+        readinessProbe:
+          httpGet:
+            path: /v2/_catalog
+            port: 5000
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 6
       volumes:
       - name: registry-persistent-storage
         persistentVolumeClaim:
